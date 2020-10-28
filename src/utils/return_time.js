@@ -1,13 +1,15 @@
-const getCurrentTimeWithMessage = (message) => {
+const getCurrentTimeWithMessage = (message, username) => {
     return {
         message,
+        username,
         createdAt: new Date().getTime()
     }
 }
 
-const generateLocationMessage = (message) => {
+const generateLocationMessage = (message, username) => {
     return {
         url: message,
+        username,
         createdAt: new Date().getTime()
     }
 }

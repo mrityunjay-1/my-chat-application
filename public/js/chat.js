@@ -13,6 +13,10 @@ const $MessageContainer = document.querySelector("#message-container");
 const $MessageTemplate = document.querySelector("#message-template").innerHTML;
 
 
+// for query String username and chat room
+
+const { username, room } = Qs.parse(location.search, { ignoreQueryPrefix: true });
+
 
 
 // getting the welcome message from server
@@ -48,6 +52,7 @@ $FormTagSelector.addEventListener("submit", function (e) {
 socket.on("message", (message) => {
     const html = Mustache.render($MessageTemplate, {
         messagetext: message.message,
+        username: message.username,
         createdAt: moment(message.createdAt).format('h:mm a')
     });
     $MessageContainer.insertAdjacentHTML('beforeend', html);
@@ -63,6 +68,7 @@ socket.on("share_location_server", (message) => {
 
     const html = Mustache.render(document.querySelector("#share_location").innerHTML, {
         location_link: message.url,
+        username: message.username,
         createdAt: moment(message.createdAt).format('h:mm a')
     });
 
@@ -98,6 +104,28 @@ $SendLocationButton.addEventListener('click', function () {
     })
 })
 
+
+
+
+socket.emit("join_room", { username, room }, (error) => {
+    if (error) {
+        alert(error);
+        location.href = '/';
+    }
+    console.log('yayyyy!');
+});
+
+
+socket.on("all_participants", (all_users, room) => {
+    let users_list = `<h3 style="color: lightgrey; width: 100%; padding: 2%; font-size: 2.5rem;"> room name: ${room} </h3>`;
+    users_list += `<h2 style="color: white; width: 100%; padding: 1%;"> connected users - </h2>`
+    all_users.map((user, index) => {
+        users_list += ` <h1 style="color: white; width: 100%; padding: 0.5%;">${index + 1}. ${user.username} </h1>`;
+    })
+
+    document.getElementById("active_user_records").innerHTML = users_list;
+
+})
 
 
 

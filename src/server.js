@@ -3,6 +3,7 @@ const http = require('http');
 const express = require('express');
 const socketio = require('socket.io');
 const { getCurrentTimeWithMessage, generateLocationMessage } = require('./utils/return_time');
+const { addUser, removeUser, getUser, getUsersInRoom } = require('./utils/track_users_file');
 
 const app = express();
 const server = http.createServer(app);
@@ -17,22 +18,38 @@ app.use(express.static(publicDirectory));
 
 let totalConnections = 0;
 io.on('connection', (socket) => {
-    console.log(`total connections = ${++totalConnections}`);
-
-    io.emit('welcome_message', getCurrentTimeWithMessage('welcome'));
+    //console.log(`total connections = ${++totalConnections}`);
 
     // message coming from the client
 
-    // gets eveyone except sender
-    socket.broadcast.emit("welcome_message", getCurrentTimeWithMessage("a user is just connected"));
+    socket.on("join_room", ({ username, room }, callback) => {
+        const { error, user } = addUser({ id: socket.id, username, room });
+        if (error) {
+            return callback(error);
+        }
+
+        socket.join(room);
+
+        socket.emit('message', getCurrentTimeWithMessage('welcome', 'chat admin - mrityunjay'));
+
+        // gets eveyone except sender
+        socket.broadcast.to(room).emit("message", getCurrentTimeWithMessage(`${user.username} is joined the room!`, 'chat admin - mrityunjay'));
+
+
+        io.to(room).emit("all_participants", getUsersInRoom(room), user.room);
+
+        callback();
+    })
 
 
     socket.on('sendMessage', (message, callback) => {
-
-        // sending message to every single user who connected
-        io.emit("message", getCurrentTimeWithMessage(message));
-        //let's check  for others except sender -----  socket.broadcast.emit("message", message);
-        callback("Delivered");
+        const user = getUser(socket.id);
+        if (user) {
+            // sending message to every single user who connected
+            io.to(user.room).emit("message", getCurrentTimeWithMessage(message, user.username));
+            //let's check  for others except sender -----  socket.broadcast.emit("message", message);
+            callback("Delivered");
+        }
     })
 
 
@@ -45,7 +62,12 @@ io.on('connection', (socket) => {
 
     // get notified everybody, about present user who left.
     socket.on('disconnect', () => {
-        io.emit("welcome_message", 'a user is just disconnected.');
+        const user = removeUser(socket.id);
+
+        if (user) {
+            io.to(user.room).emit("message", getCurrentTimeWithMessage(`${user.username} has left the room!`, user.username));
+            io.to(user.room).emit("all_participants", getUsersInRoom(user.room), user.room);
+        }
     })
 
 
